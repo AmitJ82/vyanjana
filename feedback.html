@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Share Your Feedback - Maharashtrian Masalas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/shared-styles.css">
+</head>
+<body>
+
+<header>
+  <a href="index.html" style="text-decoration: none; color: inherit;">
+    <h1>Our Products</h1>
+    <p>Explore our range of authentic Maharashtrian masalas.</p>
+  </a>
+</header>
+
+<div class="container">
+  <button type="button" class="back-link" onclick="goToIndex()" style="background: none; border: none; padding: 0; font-size: 0.88rem; color: var(--accent); font-weight: 500;">Back to Products</button>
+
+  <div id="apiStatus" class="api-status ok"><span class="dot dot-ok"></span>Loading…</div>
+
+  <!-- Feedback form section -->
+  <div id="feedbackForm" class="feedback-section">
+    <div id="formTitle">
+      <h2>Share Your Feedback</h2>
+      <p class="subtitle">Help other customers learn why they should try this product.</p>
+    </div>
+
+    <div class="selected-banner" id="previewBanner">
+      <!-- Dynamically populated -->
+    </div>
+
+    <form id="reviewForm" onsubmit="submitReview(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="reviewerName">Name <span class="opt">(optional)</span></label>
+          <input type="text" id="reviewerName" placeholder="Your name">
+        </div>
+        <div class="form-group">
+          <label for="reviewerEmail">Email <span class="opt">(optional)</span></label>
+          <input type="email" id="reviewerEmail" placeholder="Your email">
+        </div>
+      </div>
+
+      <!-- Star Picker -->
+      <div class="form-group">
+        <div class="star-picker-head">
+          <label>Rating</label>
+          <span class="picker-hint" id="pickerHint">Hover to rate →</span>
+        </div>
+        <div class="star-picker">
+          <input type="radio" id="star5" name="rating" value="5">
+          <label for="star5" onmouseover="hoverStar(5)" onmouseout="unhoverStar()">★</label>
+          <input type="radio" id="star4" name="rating" value="4">
+          <label for="star4" onmouseover="hoverStar(4)" onmouseout="unhoverStar()">★</label>
+          <input type="radio" id="star3" name="rating" value="3">
+          <label for="star3" onmouseover="hoverStar(3)" onmouseout="unhoverStar()">★</label>
+          <input type="radio" id="star2" name="rating" value="2">
+          <label for="star2" onmouseover="hoverStar(2)" onmouseout="unhoverStar()">★</label>
+          <input type="radio" id="star1" name="rating" value="1">
+          <label for="star1" onmouseover="hoverStar(1)" onmouseout="unhoverStar()">★</label>
+        </div>
+        <div id="ratingCaption"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="reviewComment">Comment</label>
+        <textarea id="reviewComment" placeholder="Tell us what you think about this product…" required></textarea>
+      </div>
+
+      <!-- Social Login Section -->
+      <div class="social-divider">Share Feedback Publicly</div>
+
+      <div id="socialBtns" class="social-btns">
+        <button type="button" class="social-btn" onclick="loginWith('google')">
+          <span>🔵</span> Google
+        </button>
+        <button type="button" class="social-btn" onclick="loginWith('facebook')">
+          <span>📘</span> Facebook
+        </button>
+        <button type="button" class="social-btn" onclick="loginWith('twitter')">
+          <span>𝕏</span> X / Twitter
+        </button>
+      </div>
+
+      <div id="connectedBadge" class="social-connected" style="display: none;">
+        <img id="socialAvatar" class="s-avatar" src="">
+        <div class="s-info">
+          <strong id="socialName"></strong>
+          <span id="socialHandle"></span>
+        </div>
+        <button type="button" onclick="disconnectSocial()" style="margin-left: auto; padding: 5px 12px; border: 1px solid #5a9462; background: transparent; color: #5a9462; border-radius: 3px; font-size: 0.75rem; cursor: pointer;">Disconnect</button>
+      </div>
+
+      <button type="submit" id="submitBtn" class="btn-submit">Submit Review →</button>
+    </form>
+  </div>
+
+  <!-- Success message -->
+  <div id="successMsg" class="success-msg" style="display: none;">
+    <div class="chk">✓</div>
+    <h3>Thank You!</h3>
+    <p>Your review has been submitted successfully.</p>
+    <button type="button" class="btn-another" onclick="resetForm()">Write Another Review</button>
+    <button type="button" class="btn-another" onclick="goToIndex()" style="background: var(--accent); color: white; border-color: var(--accent);">Back to Products</button>
+  </div>
+
+  <!-- Reviews section -->
+  <div id="reviewsSection" class="reviews-section" style="display: none;">
+    <div class="section-title">Customer Reviews</div>
+    <div id="reviewsTabs" class="reviews-tabs">
+      <!-- Tabs will be populated here -->
+    </div>
+    <div id="reviewsGrid" class="reviews-grid">
+      <!-- Reviews will be rendered here -->
+    </div>
+  </div>
+</div>
+
+<script src="assets/shared-utils.js"></script>
+<script src="assets/page-feedback.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+</body>
+</html>

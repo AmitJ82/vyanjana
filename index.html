@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Our Products - Maharashtrian Masalas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/shared-styles.css">
+</head>
+<body>
+
+<header>
+  <h1>Our Products</h1>
+  <p>Explore our range of authentic Maharashtrian masalas.</p>
+</header>
+
+<div class="container">
+  <div id="apiStatus" class="api-status ok"><span class="dot dot-ok"></span>Loading…</div>
+
+  <div class="section-title">Products</div>
+  <div id="itemsGrid" class="items-grid">
+    <div class="page-loader"><div class="spinner"></div> Loading products…</div>
+  </div>
+
+  <!-- Select-hint banner -->
+  <div id="selectHint" class="select-hint">
+    <span class="arr">👇</span>
+    Click Review or Order to get started
+  </div>
+</div>
+
+<script src="assets/shared-utils.js"></script>
+<script src="assets/page-main.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+</body>
+</html>
