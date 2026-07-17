@@ -39,7 +39,7 @@ function renderItems() {
       <div class="item-card" id="card-${item.id}">
         <div class="item-img-wrap">
           ${item.image
-            ? `<img src="${item.image}" alt="${item.name}" onerror="this.parentElement.innerHTML='<div class=\\"item-img-placeholder\\"><span class=\\"icon\\">${item.emoji||'📦'}</span></div>';">`
+            ? `<img src="${item.image}" alt="${item.name}" onerror="this.parentElement.innerHTML='<div class=\\"item-img-placeholder\\"><span class=\\"icon\\">${item.emoji||'📦'}</span></div>`
             : `<div class="item-img-placeholder"><span class="icon">${item.emoji||'📦'}</span></div>`}
         </div>
         <div class="item-body">
