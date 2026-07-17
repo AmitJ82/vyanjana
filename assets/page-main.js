@@ -57,18 +57,24 @@ function renderItems() {
 }
 
 // ── Initialize ───────────────────────────────────────────────
-async function initMainPage() {
-  try {
-    reviews = await fetchReviews();
-    setApiStatus('ok', `✓ Loaded ${reviews.length} review${reviews.length!==1?'s':''}`);
-  } catch (err) {
-    setApiStatus('err', '✗ Could not load reviews: ' + err.message);
-    console.error(err);
-    reviews = [];
-  }
-
+function initMainPage() {
+  // Render immediately from cached reviews so the page never waits on the network
+  reviews = JSON.parse(localStorage.getItem('feedbackReviews') || '[]');
   document.getElementById('itemsGrid').innerHTML = '';
   renderItems();
+
+  // Fetch the latest reviews in the background and refresh the grid once they arrive
+  setApiStatus('loading', 'Loading reviews…');
+  fetchReviews()
+    .then(fetched => {
+      reviews = fetched;
+      setApiStatus('ok', `✓ Loaded ${reviews.length} review${reviews.length!==1?'s':''}`);
+      renderItems();
+    })
+    .catch(err => {
+      setApiStatus('err', '✗ Could not load reviews: ' + err.message);
+      console.error(err);
+    });
 
   // Optional: Load Google OAuth
   if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== '') {
