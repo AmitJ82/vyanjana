@@ -139,25 +139,33 @@ function resetForm() {
 }
 
 // ── Initialize Feedback Page ────────────────────────────────
-async function initFeedbackPage() {
-  try {
-    reviews = await fetchReviews();
-    setApiStatus('ok', `✓ Loaded ${reviews.length} review${reviews.length!==1?'s':''}`);
-  } catch (err) {
-    setApiStatus('err', '✗ Could not load reviews: ' + err.message);
-    console.error(err);
-    reviews = [];
-  }
+function initFeedbackPage() {
+  // Render immediately from cached reviews so the page never waits on the network
+  reviews = JSON.parse(localStorage.getItem('feedbackReviews') || '[]');
 
   // Get product from URL or sessionStorage
   const productId = getProductFromUrl();
   selectedItem = ITEMS.find(i => i.id === productId);
-  
+
   if (selectedItem) {
     setupProductBanner();
   }
 
   renderReviews();
+
+  // Fetch the latest reviews in the background and refresh the view once they arrive
+  setApiStatus('loading', 'Loading reviews…');
+  fetchReviews()
+    .then(fetched => {
+      reviews = fetched;
+      setApiStatus('ok', `✓ Loaded ${reviews.length} review${reviews.length!==1?'s':''}`);
+      if (selectedItem) setupProductBanner();
+      renderReviews();
+    })
+    .catch(err => {
+      setApiStatus('err', '✗ Could not load reviews: ' + err.message);
+      console.error(err);
+    });
 
   // Optional: Load Google OAuth
   if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== '') {
