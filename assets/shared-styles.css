@@ -3,10 +3,10 @@
 /* Bar chart */
 .rating-bars { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
 .rating-bar-row { display:flex; align-items:center; gap:7px; }
-.rbl { width:10px; text-align:right; flex-shrink:0; font-size:0.72rem; color:var(--muted); }
+.rbl { width:25px; text-align:right; flex-shrink:0; font-size:0.72rem; color:var(--muted); }
 .bar-track { flex:1; height:5px; background:var(--border-light); border-radius:99px; overflow:hidden; }
 .bar-fill { height:100%; background:var(--gold); border-radius:99px; transition:width 0.7s ease; }
-.bar-n { width:18px; text-align:right; font-size:0.7rem; color:var(--muted); flex-shrink:0; }
+.bar-n { width:30px; text-align:right; font-size:0.7rem; color:var(--muted); flex-shrink:0; }
 
 /* Comment snip */
 .card-comment-snip {
