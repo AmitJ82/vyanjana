@@ -13,47 +13,44 @@ function renderItems() {
     if (stats) {
       ratingBlock = `
         <div class="card-rating-row">
-          ${"${"}starsHtml(Math.round(stats.avg))${"}"}
-          <span class="card-avg">${"${"}stats.avg.toFixed(1)${"}"}</span>
-          <span class="card-count">(${"${"}stats.count${"}"} review${"${"}stats.count !== 1 ? 's' : ''${"}"})</span>
+          ${starsHtml(stats.avg)}
+          <span class="card-avg">${stats.avg.toFixed(1)}</span>
+          <span class="card-count">(${stats.count} review${stats.count !== 1 ? 's' : ''})</span>
         </div>
         <div class="rating-bars">
-          ${"${"}[5,4,3,2,1].map(n => {
-            const distArr = stats && Array.isArray(stats.dist) ? stats.dist : [];
-            // Try common ordering where index 0 = 5★, fallback to index 0 = 1★
-            const countForN = (typeof distArr[5 - n] === 'number' ? distArr[5 - n]
-                              : (typeof distArr[n - 1] === 'number' ? distArr[n - 1] : 0));
+          ${[5,4,3,2,1].map(n => {
+            const countForN = stats.dist[n - 1] || 0;
             const pct = stats && stats.count ? Math.round((countForN / stats.count) * 100) : 0;
             return `<div class="rating-bar-row">
-              <span class="rbl">${"${"}n${"}"}</span>
-              <div class="bar-track"><div class="bar-fill" style="width:${"${"}pct${"}"}%"></div></div>
-              <span class="bar-n">${"${"}countForN${"}"}</span>
+              <span class="rbl">${n}</span>
+              <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+              <span class="bar-n">${countForN}</span>
             </div>`;
-          }).join('')}${"}"}
+          }).join('')}
         </div>`;
     } else {
       ratingBlock = `<p class="no-reviews-tag">No reviews yet — be first!</p>`;
     }
 
     const snip = latest
-      ? `<div class="card-comment-snip">"${"${"}latest.comment.length > 90 ? latest.comment.slice(0,90)+'…' : latest.comment${"}"}"}<span class="snip-by">— ${"${"}latest.name${"}"}</span></div>`
+      ? `<div class="card-comment-snip">"${latest.comment.length > 90 ? latest.comment.slice(0,90)+'…' : latest.comment}"<span class="snip-by">— ${latest.name}</span></div>`
       : '';
 
     return `
-      <div class="item-card" id="card-${"${"}item.id${"}"}">
+      <div class="item-card" id="card-${item.id}">
         <div class="item-img-wrap">
-          ${"${"}item.image
-            ? `<img src="${"${"}item.image${"}"}" alt="${"${"}item.name${"}"}" onerror="this.parentElement.innerHTML='<div class=\\"item-img-placeholder\\"><span class=\\"icon\\">${"${"}item.emoji||'📦'${"}"}</span></div>'`
-            : `<div class="item-img-placeholder"><span class="icon">${"${"}item.emoji||'📦'${"}"}</span></div>`}${"}"}
+          ${item.image
+            ? `<img src="${item.image}" alt="${item.name}" onerror="this.parentElement.innerHTML='<div class=\\"item-img-placeholder\\"><span class=\\"icon\\">${item.emoji||'📦'}</span></div>'">`
+            : `<div class="item-img-placeholder"><span class="icon">${item.emoji||'📦'}</span></div>`}
         </div>
         <div class="item-body">
-          <div class="item-name">${"${"}item.name${"}"}</div>
-          <div class="item-desc">${"${"}item.description||''${"}"}</div>
-          ${"${"}ratingBlock${"}"}
-          ${"${"}snip${"}"}
+          <div class="item-name">${item.name}</div>
+          <div class="item-desc">${item.description||''}</div>
+          ${ratingBlock}
+          ${snip}
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto;">
-            <button class="btn-card-action" onclick="goToFeedback(${"${"}item.id${"}"})" style="background: var(--accent); color: white;">★ Review</button>
-            <button class="btn-card-action" onclick="goToOrder(${"${"}item.id${"}"})">🛒 Order</button>
+            <button class="btn-card-action" onclick="goToFeedback(${item.id})" style="background: var(--accent); color: white;">★ Review</button>
+            <button class="btn-card-action" onclick="goToOrder(${item.id})">🛒 Order</button>
           </div>
         </div>
       </div>`;
