@@ -28,11 +28,11 @@ If no permission dialog appears, make sure you are running `authorizeServices` f
 
 Create a `Products` tab with these columns:
 
-| Item ID | Item | Item Weight | Price |
-| --- | --- | --- | --- |
-| 1 | Goda Masala | 100 g | 120 |
+| Item ID | Item | Item Weight | Price | Inventory |
+| --- | --- | --- | ---: | ---: |
+| 1 | Goda Masala | 100 g | 120 | 25 |
 
-The order page reads this tab through the same Apps Script URL as reviews. The `Item ID` must match the product IDs used by the app. If the tab is empty or unavailable, the app uses its built-in catalog values.
+The order page reads this tab through the same Apps Script URL as reviews. The `Item ID` must match the product IDs used by the app. Add an `Inventory` column to control stock visibility and ordering. A product with inventory `0` is hidden from the home and checkout pages. If the tab is empty or unavailable, the app uses its built-in catalog values.
 
 ## Delivery configuration
 
@@ -41,11 +41,14 @@ Create a `Settings` tab with `Key` and `Value` columns:
 | Key | Value |
 | --- | --- |
 | shopCity | Bangalore |
+| shopCityAliases | Bengaluru |
 | shopState | Karnataka |
 | buffer | 15 |
 | zoneCities | Mumbai, Delhi, Hyderabad |
 | upiId | yourname@upi |
 | orderNotificationEmail | shop@example.com |
+| adminUsername | owner |
+| adminPassword | change-this-password |
 
 Create a `DeliveryConfig` tab with these exact columns:
 
@@ -63,3 +66,5 @@ Create a `DeliveryConfig` tab with these exact columns:
 The app fetches this configuration as JSON on load. Cart weight is calculated from each selected product weight and quantity. The configured buffer is added to the selected tariff. For weights above 5 kg, the additional-kilogram tariff is applied for every started kilogram.
 
 `upiId` enables the dynamic UPI QR option. The QR amount is generated from the invoice total. QR scanning alone does not confirm payment, so UPI QR orders are saved with `Pending` status until payment is verified separately. `orderNotificationEmail` receives the order ID, customer details, items, payment method, status, and total after the order is saved.
+
+The owner page uses `adminUsername` and `adminPassword` from the `Settings` tab. Open the `Owner` link in the app navigation to review orders, verify payment, change status, set a delivery date, save a delivery comment, and update inventory counts. A blank Inventory cell means unlimited stock; an explicit `0` hides the item and blocks ordering. The Apps Script deployment must be redeployed after backend changes.
