@@ -7,7 +7,7 @@ import teaMasalaImage from './assets/vyanjana-images/tea-masala.jpeg'
 import turmericImage from './assets/vyanjana-images/turmeric.jpeg'
 import ambemohorImage from './assets/vyanjana-images/ambe-mohor-pithi.jpeg'
 import byadagiImage from './assets/vyanjana-images/byadagi-chilli.jpeg'
-import corianderPowderImage from './assets/vyanjana-images/coriander-powder.jpeg'
+import corianderPowderImage from './assets/vyanjana-images/Coriander-powder.jpeg'
 import kitchenKingMasalaImage from './assets/vyanjana-images/Kitchen-king.jpeg'
 import amlaImage from './assets/vyanjana-images/AmlaSlice.jpeg'
 
