@@ -1,44 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
+import garamMasalaImage from './assets/vyanjana-images/garam-masala.jpeg'
+import godaMasalaImage from './assets/vyanjana-images/goda-masala.jpeg'
+import kandaLasunMasalaImage from './assets/vyanjana-images/kanda-lasun-masala.jpeg'
+import teaMasalaImage from './assets/vyanjana-images/tea-masala.jpeg'
+import turmericImage from './assets/vyanjana-images/turmeric.jpeg'
+import ambemohorImage from './assets/vyanjana-images/ambe-mohor-pithi.jpeg'
+import byadagiImage from './assets/vyanjana-images/byadagi-chilli.jpeg'
+import corianderPowderImage from './assets/vyanjana-images/coriander-powder.jpeg'
+import kitchenKingMasalaImage from './assets/vyanjana-images/Kitchen-king.jpeg'
+import amlaImage from './assets/vyanjana-images/AmlaSlice.jpeg'
+
+import HomePage from './components/HomePage'
+import OwnerPage from './components/OwnerPage'
+import SocialLoginButtons from './components/SocialLoginButtons'
+import type { Page, Product, Review } from './types'
+import { canAddInventoryItem, getAvailableProducts, getDeliveryZone } from './storeRules'
 import './App.css'
-
-type Page = 'home' | 'feedback' | 'order'
-
-type Product = {
-  id: number
-  name: string
-  weight: string
-  description: string
-  image: string
-  emoji: string
-  price: number
-  quantity: number
-  variants?: ProductVariant[]
-}
-
-type ProductVariant = {
-  weight: string
-  price: number
-}
 
 type CartItem = {
   productId: number
   weight: string
   quantity: number
-}
-
-type Review = {
-  id: number
-  itemId: number
-  item: string
-  name: string
-  email: string
-  comment: string
-  rating: number
-  provider?: string
-  avatar?: string
-  googleId?: string
-  date: string
 }
 
 type Order = {
@@ -106,6 +89,7 @@ type DeliverySlab = {
 
 type DeliveryConfig = {
   shopCity: string
+  shopCityAliases: string[]
   shopState: string
   buffer: number
   zoneCities: string[]
@@ -128,6 +112,7 @@ declare global {
       accounts?: {
         id?: {
           initialize: (config: Record<string, unknown>) => void
+          prompt?: () => void
         }
       }
     }
@@ -136,6 +121,7 @@ declare global {
 
 const DEFAULT_DELIVERY_CONFIG: DeliveryConfig = {
   shopCity: 'Bangalore',
+  shopCityAliases: ['Bengaluru'],
   shopState: 'Karnataka',
   buffer: 15,
   zoneCities: [],
@@ -163,57 +149,57 @@ const ITEMS: Product[] = [
   {
     id: 1,
     name: 'Goda Masala',
-    weight: '100 g',
+    weight: '100 g', 
     description: 'Maharashtrian Goda Masala, used to make vegetable, dal, Masala Rice.',
-    image:
-      'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjdCzXlD6FL_k2L3VhzOOeHAkbM_xNoUbXsEv5oA08F_8GbbDivvhg7_SsvBNyHERZSkgvx9r2l58bxEcjh2wmuMCnYiGDAeRqL-HwN-LVNwxFtSIA3-lxQ70rT3gMptktAQB1P9sSSmNBYuBcrxykre0S3kqcPDkImHv1AeXt1HGbM4bzwASFXNggJOVk/s1280/GodaMasala_MyLeki.jpeg',
+    image: godaMasalaImage,
     emoji: '🍛',
     price: 120,
     quantity: 1,
+    category: 'masala',
   },
   {
     id: 2,
     name: 'Kanda Lasun Masala',
     weight: '100 g',
     description: 'Kanda Lasun Masala (Onion Garlic with Chilli powder) brings extra spice to dishes like Misal',
-    image:
-      'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi-MIhBJHbg_355E3-_e7V0fTx6vHAzW1THvdaY22dbqZEVJSdY2Rs_ZF3WK8woGMmqw6PXrxmA_2V1AuyxWXO9yC2JnkmQGYkOHY9a2N8-Rv1FXTV41DdFuDNpMDwCuoyyh4h6nppVTZpisUEnJcI_O4mhiKSV9YJIqJ8zEesweeyr9U3cKfz7zD0GUmc/s1600/WhatsApp%20Image%202026-02-18%20at%205.57.34%20PM.jpeg',
+    image: kandaLasunMasalaImage,
     emoji: '🌶️',
     price: 80,
     quantity: 1,
+    category: 'masala',
   },
   {
     id: 3,
     name: 'Tea Masala',
     weight: '50 g',
     description: 'Tea masala gives immunity boost',
-    image:
-      'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj7Z6PI_0-eyKVYYzm2q7PO3srPmsYkdXYub_cqMkKumW11Vyb4xSPBzUisW3HnQ6uQPpGKlICUrenlIXQyQZFOlPYJj7at_8MtIgcdFuVSSHEzbE9JyC8pUDW0_L23K5s49RlBrrrSvHv49TqmbuF1IoyQq1ttnvS24jRLDvqo26SczuCpN48Ua_OHQXw/s1600/WhatsApp%20Image%202026-02-18%20at%205.57.35%20PM.jpeg',
+    image: teaMasalaImage,
     emoji: '🍵',
     price: 100,
     quantity: 1,
+    category: 'masala',
   },
   {
     id: 4,
     name: 'Garam Masala',
     weight: '50 g',
     description: 'Garam masala to make tasty dishes like Paneer tikka masala',
-    image:
-      'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiYs3GypDu4bGzIo_bPGAx_dbDwOoSChKBpppvyo9TyYn_vYN7xI2iGJE7-0f2o8H-FFLvchFwV3V5XBtId9JJ-S0dEfbBJ2lY1XDIfpKe9Z_AO0KtwT6_IjuSLQa2sM5EKM6tvztUWa_9LwWWd1DKXXoaDE4GfJFBOOMdLqrO5YkZQSOKa9s5fxtOprwM/s320/Dhania.jpeg',
+    image: garamMasalaImage,
     emoji: '🌶️',
     price: 60,
     quantity: 1,
+    category: 'masala',
   },
   {
     id: 5,
     name: 'Turmeric',
     weight: '100 g',
     description: 'Turmeric powder from Sangli Maharashtra',
-    image:
-      'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjCqGDLflhSMFW1p7fY4S0sWF3iAyx02sNHLEKOywhtqtbV79ww3zKQVr6kFQJRAVfA4U4p4TUoc5HJCesYAM98O3_9MDaMABl1KtW_Ef0ck3bO4IcIoKGkNrxFm4O2ZDhnJiKcX7-ZXuiBU0DRZZjOkEor9wGYTE3Omrl0lboosH0ZDgB14UXgI93iBgA/s320/Turmeric.jpeg',
+    image: turmericImage,
     emoji: '🌶️',
     price: 50,
-    quantity: 1,
+    quantity: 1,    
+    category: 'masala', 
   },
   {
     id: 6,
@@ -221,10 +207,11 @@ const ITEMS: Product[] = [
     weight: '100 g',
     description: 'Coriander powder',
     image:
-      'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh8YNSOdbjW9fDirwmrBIKKuSYRiRcaS8LEKdy_LeHqwTQg-ZdLBwjWyKolMmBK2rOW53mhKmi_159XyTKIc9apxpG_X68yH5qrBfbNrc-FPBp18ssikNtgRiCURC4GEsc0yJ_0N-MrgOLzAFGrnWiIPXn4s7JTuDm1vD9ODPCd641SoM9YIpmSUjhGbuI/s320/DhaniaPowder.jpeg',
+      corianderPowderImage,
     emoji: '🌶️',
     price: 36,
     quantity: 1,
+    category: 'masala',
   },
   {
     id: 7,
@@ -232,10 +219,11 @@ const ITEMS: Product[] = [
     weight: '200 g',
     description: 'Amla slice/Grated Amla Sweet and Sour',
     image:
-      'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhKer4PX5wEHYEI1dZBE8SocseQ31sN2LA_IhWeoQKjQoFzGRQz4w7BVcfk8jIo_Zz_IXfOxzkhChp_ImDu0PQGlL16hCNEvWG08WiuOg9bSd81prYXFhaiN3esA0rFusbllztfD4Q7vF1c-yP5vCdUTnDFFbqhsAXHUZPqaPtp_c3V8B3BREBpefUOZFc/s320/AmlaSlice.jpeg',
+      amlaImage,
     emoji: '🍵',
     price: 50,
     quantity: 1,
+    category: 'food',
   },
   {
     id: 8,
@@ -247,6 +235,40 @@ const ITEMS: Product[] = [
     emoji: '🍵',
     price: 150,
     quantity: 1,
+    category: 'food',
+  },
+  {
+    id: 9,
+    name: 'Ambe Mohor Pithi',
+    weight: '100 g',
+    description: 'Ambe mohohor pithi(Modak Pithi) to make ukdiche modak, Neer Dosa, Ghavan',
+    image: ambemohorImage,
+    emoji: '🍵',
+    price: 80,
+    quantity: 1,
+    category: 'food',
+  },
+  {
+    id: 10,
+    name: 'Kitchen King Masala',
+    weight: '100 g',
+    description: 'Kitchen King Masala to make tasty dishes like Paneer Butter Masala, Veg Kolhapuri',
+    image: kitchenKingMasalaImage,
+    emoji: '🌶️',
+    price: 80,
+    quantity: 1,    
+    category: 'masala',
+  }
+  ,{
+    id: 11,
+    name: 'Byadagi Chilli Powder',
+    weight: '100 g',
+    description: 'Byadagi Chilli Powder to make tasty dishes like Kolhapuri Misal, Vegetables',
+    image: byadagiImage,
+    emoji: '🌶️',
+    price: 80,
+    quantity: 1,
+    category: 'masala',
   },
 ]
 
@@ -268,14 +290,6 @@ const readStoredOrders = (): Order[] => {
   } catch {
     return []
   }
-}
-
-const starsHtml = (avg: number) => {
-  const out = [] as string[]
-  for (let i = 1; i <= 5; i += 1) {
-    out.push(`<span class="${avg >= i ? 'sf' : 'se'}">★</span>`)
-  }
-  return out.join('')
 }
 
 const getStats = (itemId: number, reviewList: Review[]) => {
@@ -356,16 +370,24 @@ const fetchCatalogFromSheets = async (): Promise<{ products: Product[]; delivery
     const payload = (await response.json()) as { products?: Array<Record<string, unknown>>; deliveryConfig?: Partial<DeliveryConfig> }
     if (!Array.isArray(payload.products) || !payload.products.length) return { products: ITEMS, deliveryConfig: DEFAULT_DELIVERY_CONFIG }
 
+    type RemoteProduct = { id: number; name: string; weight: string; price: number; inventory: number | undefined }
     const remoteProducts = payload.products
-      .map((product) => {
+      .map((product): RemoteProduct | null => {
         const id = Number(product.itemId ?? product.id)
         const fallback = ITEMS.find((item) => item.id === id)
         const price = Number(product.price)
         if (!id || !fallback || !Number.isFinite(price)) return null
 
-        return { id, name: String(product.item ?? product.name ?? fallback.name), weight: String(product.weight ?? fallback.weight), price }
+        const rawInventory = Number(product.inventory)
+        return {
+          id,
+          name: String(product.item ?? product.name ?? fallback.name),
+          weight: String(product.weight ?? fallback.weight),
+          price,
+          inventory: Number.isFinite(rawInventory) ? Math.max(0, rawInventory) : undefined,
+        }
       })
-      .filter((product): product is { id: number; name: string; weight: string; price: number } => Boolean(product))
+      .filter((product): product is RemoteProduct => product !== null)
 
     const groupedProducts = new Map<number, typeof remoteProducts>()
     remoteProducts.forEach((product) => {
@@ -382,7 +404,8 @@ const fetchCatalogFromSheets = async (): Promise<{ products: Product[]; delivery
         name: firstVariant.name,
         weight: firstVariant.weight,
         price: firstVariant.price,
-        variants: variants.map(({ weight, price }) => ({ weight, price })),
+        inventory: undefined,
+        variants: variants.map(({ weight, price, inventory }) => ({ weight, price, inventory })),
       }
     })
     return { products, deliveryConfig: { ...DEFAULT_DELIVERY_CONFIG, ...payload.deliveryConfig } }
@@ -493,12 +516,7 @@ function App() {
     0,
   )
   const deliveryZone = useMemo(() => {
-    const city = checkoutForm.city.trim().toLowerCase()
-    const state = checkoutForm.state.trim().toLowerCase()
-    if (city && city === deliveryConfig.shopCity.toLowerCase()) return 'local' as const
-    if (deliveryConfig.zoneCities.some((zoneCity) => zoneCity.toLowerCase() === city)) return 'zoneMetro' as const
-    if (state && state === deliveryConfig.shopState.toLowerCase()) return 'withinState' as const
-    return 'otherStates' as const
+    return getDeliveryZone(checkoutForm.city, checkoutForm.state, deliveryConfig)
   }, [checkoutForm.city, checkoutForm.state, deliveryConfig])
   const deliveryChargeBase = useMemo(() => {
     const slab = deliveryConfig.slabs.find((entry) => totalCartWeight <= (entry.maxGrams ?? 0))
@@ -509,8 +527,8 @@ function App() {
   }, [deliveryConfig, deliveryZone, totalCartWeight])
   const deliveryCharge = deliveryChargeBase + deliveryConfig.buffer
   const invoiceTotal = cartSubtotal + deliveryCharge
-  const upiPaymentUri = deliveryConfig.upiId
-    ? `upi://pay?pa=${encodeURIComponent(deliveryConfig.upiId)}&pn=${encodeURIComponent('Vyanjana Dravyani')}&am=${invoiceTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Invoice payment')}`
+  const getUpiPaymentUri = (amount: number) => deliveryConfig.upiId
+    ? `upi://pay?pa=${encodeURIComponent(deliveryConfig.upiId)}&pn=${encodeURIComponent('Vyanjana Dravyani')}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('Invoice payment')}`
     : ''
 
   const accountPost = async (payload: Record<string, string>) => {
@@ -587,7 +605,7 @@ function App() {
     fetchReviewsFromSheets().then((remoteReviews) => {
       if (!active || !remoteReviews.length) return
       setReviews(remoteReviews)
-      setApiStatus('✓ Loaded reviews')
+      setApiStatus('✓')
     })
 
     return () => {
@@ -645,7 +663,7 @@ function App() {
   }, [page, socialUser])
 
   useEffect(() => {
-    if (page === 'home') setApiStatus('✓ Loaded reviews')
+    if (page === 'home') setApiStatus('✓')
   }, [page, reviews.length])
 
   useEffect(() => {
@@ -673,7 +691,7 @@ function App() {
   const goToPage = (nextPage: Page, itemId = selectedItemId) => {
     setSelectedItemId(itemId)
     if (nextPage === 'order') {
-      setCart((current) => addCartLine(current, itemId, selectedWeights[itemId] ?? selectedItem.weight))
+      if (!addProductToCart(itemId, selectedWeights[itemId] ?? selectedItem.weight)) return
     }
     setPage(nextPage)
     if (nextPage !== 'feedback') setReviewSubmitted(false)
@@ -684,7 +702,10 @@ function App() {
       if (isSelected) {
         const product = products.find((item) => item.id === productId)
         if (!product) return current
-        return addCartLine(current, productId, selectedWeights[productId] ?? product.weight)
+        const weight = selectedWeights[productId] ?? product.weight
+        const currentQuantity = current.find((item) => item.productId === productId && item.weight === weight)?.quantity ?? 0
+        if (!canAddInventoryItem(product, currentQuantity, 1, weight)) return current
+        return addCartLine(current, productId, weight)
       }
       return current.filter((item) => item.productId !== productId)
     })
@@ -695,9 +716,7 @@ function App() {
   }
 
   const addSelectedWeightToCart = (productId: number) => {
-    const product = products.find((item) => item.id === productId)
-    if (!product) return
-    setCart((current) => addCartLine(current, productId, selectedWeights[productId] ?? product.weight))
+    addProductToCart(productId, selectedWeights[productId])
   }
 
   const addCartLine = (current: CartItem[], productId: number, weight: string) => {
@@ -708,39 +727,47 @@ function App() {
     return [...current, { productId, weight, quantity: 1 }]
   }
 
+  const addProductToCart = (productId: number, selectedWeight?: string) => {
+    const product = products.find((item) => item.id === productId)
+    if (!product) return false
+
+    const weight = selectedWeight ?? product.weight
+    const currentQuantity = cart.find((item) => item.productId === productId && item.weight === weight)?.quantity ?? 0
+    if (!canAddInventoryItem(product, currentQuantity, 1, weight)) {
+      const inventory = product.variants?.find((variant) => variant.weight === weight)?.inventory ?? product.inventory
+      alert(`Only ${inventory} ${product.name} item${inventory === 1 ? '' : 's'} available.`)
+      return false
+    }
+
+    setCart((current) => addCartLine(current, productId, weight))
+    return true
+  }
+
   const changeCartQuantity = (productId: number, weight: string, quantity: number) => {
     if (quantity < 1) return
+    const product = products.find((item) => item.id === productId)
+    if (product && !canAddInventoryItem(product, 0, quantity, weight)) {
+      const inventory = product.variants?.find((variant) => variant.weight === weight)?.inventory ?? product.inventory
+      alert(`Only ${inventory} ${product.name} item${inventory === 1 ? '' : 's'} available.`)
+      return
+    }
     setCart((current) => current.map((item) => (
       item.productId === productId && item.weight === weight ? { ...item, quantity } : item
     )))
   }
 
   const loginWith = (provider: 'google' | 'facebook' | 'twitter') => {
-    const demos = {
-      google: {
-        name: 'Demo Google User',
-        email: 'demo@gmail.com',
-        handle: 'demo@gmail.com',
-        avatar: 'https://ui-avatars.com/api/?name=Demo+User&background=4285F4&color=fff&size=80',
-        provider: 'Google',
-      },
-      facebook: {
-        name: 'Demo Facebook User',
-        email: 'demo@fb.com',
-        handle: 'facebook.com/demo',
-        avatar: 'https://ui-avatars.com/api/?name=Facebook+User&background=1877F2&color=fff&size=80',
-        provider: 'Facebook',
-      },
-      twitter: {
-        name: 'Demo Twitter User',
-        email: '',
-        handle: '@demo_user',
-        avatar: 'https://ui-avatars.com/api/?name=Twitter+User&background=000000&color=fff&size=80',
-        provider: 'X/Twitter',
-      },
+    if (provider === 'google' && window.google?.accounts?.id?.prompt) {
+      window.google.accounts.id.prompt()
+      return
     }
 
-    setSocialUser(demos[provider])
+    const loginUrls = {
+      google: 'https://accounts.google.com/AccountChooser',
+      facebook: 'https://www.facebook.com/login.php',
+      twitter: 'https://x.com/i/flow/login',
+    }
+    window.open(loginUrls[provider], '_blank', 'noopener,noreferrer')
   }
 
   const disconnectSocial = () => {
@@ -834,6 +861,15 @@ function App() {
     const firstCartProduct = cartProducts[0]
     if (!firstCartProduct) return
 
+    const overInventory = cartProducts.find(({ product, quantity, weight }) => (
+      !canAddInventoryItem(product, 0, quantity, weight)
+    ))
+    if (overInventory) {
+      const inventory = overInventory.product.variants?.find((variant) => variant.weight === overInventory.weight)?.inventory ?? overInventory.product.inventory
+      alert(`Only ${inventory} ${overInventory.product.name} item${inventory === 1 ? '' : 's'} available.`)
+      return
+    }
+
     const lineItems = cartProducts.map(({ product, quantity }) => ({
       productId: product.id,
       productName: product.name,
@@ -864,6 +900,27 @@ function App() {
     }
 
     setOrders((current) => [orderData, ...current])
+    setProducts((current) => current.map((product) => {
+      const orderedItems = lineItems.filter((item) => item.productId === product.id)
+      if (!orderedItems.length) return product
+      if (product.variants?.length) {
+        return {
+          ...product,
+          variants: product.variants.map((variant) => {
+            const orderedQuantity = orderedItems
+              .filter((item) => item.weight === variant.weight)
+              .reduce((total, item) => total + item.quantity, 0)
+            return orderedQuantity && variant.inventory !== undefined
+              ? { ...variant, inventory: Math.max(0, variant.inventory - orderedQuantity) }
+              : variant
+          }),
+        }
+      }
+      const orderedQuantity = orderedItems.reduce((total, item) => total + item.quantity, 0)
+      return product.inventory === undefined
+        ? product
+        : { ...product, inventory: Math.max(0, product.inventory - orderedQuantity) }
+    }))
     if (ORDER_API_URL && !ORDER_API_URL.includes('your-api-id')) {
       try {
         await fetch(ORDER_API_URL, {
@@ -1060,105 +1117,6 @@ function App() {
     </section>
   )
 
-  const renderHome = () => (
-    <div className="page-shell">
-      <header>
-        <h1>Vyanjana Dravyani</h1>
-        <p>Explore our range of authentic Maharashtrian masalas.</p>
-      </header>
-
-      <div className="container">
-        {renderAccountPanel()}
-        <div className={`api-status ${apiStatus.includes('Saving') ? 'loading' : apiStatus.includes('locally') ? 'err' : 'ok'}`}>
-          <span className="dot dot-ok"></span>
-          {apiStatus}
-        </div>
-
-        <div className="section-title">Products</div>
-        <div className="items-grid">
-          {products.map((item) => {
-            const stats = getStats(item.id, reviews)
-            const latest = reviews.find((review) => review.itemId === item.id)
-
-            return (
-              <div key={item.id} className="item-card">
-                <div className="item-img-wrap">
-                  {item.image ? (
-                    <img src={item.image} alt={item.name} />
-                  ) : (
-                    <div className="item-img-placeholder">
-                      <span className="icon">{item.emoji || '📦'}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="item-body">
-                  <div className="item-name">{item.name}</div>
-                  <div className="item-desc">{item.description}</div>
-
-                  {stats ? (
-                    <>
-                      <div className="card-rating-row">
-                        <div className="card-stars" dangerouslySetInnerHTML={{ __html: starsHtml(stats.avg) }} />
-                        <span className="card-avg">{stats.avg.toFixed(1)}</span>
-                        <span className="card-count">({stats.count} review{stats.count !== 1 ? 's' : ''})</span>
-                      </div>
-                      <div className="rating-bars">
-                        {[5, 4, 3, 2, 1].map((number) => {
-                          const countForStar = stats.dist[number - 1] || 0
-                          const percent = stats.count ? Math.round((countForStar / stats.count) * 100) : 0
-                          return (
-                            <div key={number} className="rating-bar-row">
-                              <span className="rbl">{number}</span>
-                              <div className="bar-track">
-                                <div className="bar-fill" style={{ width: `${percent}%` }}></div>
-                              </div>
-                              <span className="bar-n">{countForStar}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="no-reviews-tag">No reviews yet — be first!</p>
-                  )}
-
-                  {latest && (
-                    <div className="card-comment-snip">
-                      "{latest.comment.length > 90 ? `${latest.comment.slice(0, 90)}…` : latest.comment}"
-                      <span className="snip-by">— {latest.name}</span>
-                    </div>
-                  )}
-
-                  <div className="card-action-row">
-                    <button
-                      type="button"
-                      className="btn-card-action accent"
-                      onClick={() => goToPage('feedback', item.id)}
-                    >
-                      ★ Review
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => goToPage('order', item.id)}
-                    >
-                      🛒 Order
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="select-hint">
-          <span className="arr">👇</span>
-          Click Review or Order to get started
-        </div>
-      </div>
-    </div>
-  )
-
   const renderFeedback = () => (
     <div className="page-shell">
       <header>
@@ -1277,19 +1235,7 @@ function App() {
                 />
               </div>
 
-              <div className="social-divider">Share Feedback Publicly</div>
-
-              <div className="social-btns">
-                <button type="button" className="social-btn" onClick={() => loginWith('google')}>
-                  <span>🔵</span> Google
-                </button>
-                <button type="button" className="social-btn" onClick={() => loginWith('facebook')}>
-                  <span>📘</span> Facebook
-                </button>
-                <button type="button" className="social-btn" onClick={() => loginWith('twitter')}>
-                  <span>𝕏</span> X / Twitter
-                </button>
-              </div>
+              <SocialLoginButtons onLogin={loginWith} />
 
               {socialUser && (
                 <div className="social-connected">
@@ -1405,7 +1351,7 @@ function App() {
                 <span>{cartProducts.length} selected</span>
               </div>
               <div className="picker-grid">
-                {products.map((item) => {
+                {getAvailableProducts(products).map((item) => {
                   const cartItem = cart.find((entry) => entry.productId === item.id)
                   const variants = item.variants ?? [{ weight: item.weight, price: item.price }]
                   const selectedWeight = selectedWeights[item.id] ?? variants[0].weight
@@ -1418,7 +1364,7 @@ function App() {
                         onChange={(event) => toggleCartProduct(item.id, event.target.checked)}
                       />
                       <span className="picker-item-name">{item.name}</span>
-                      <span className="picker-item-price">ID {item.id} · {formatPrice(selectedVariant.price)}</span>
+                      <span className="picker-item-price">ID {item.id} · {formatPrice(selectedVariant.price)}{selectedVariant.inventory !== undefined ? ` · ${selectedVariant.inventory} left` : item.inventory !== undefined ? ` · ${item.inventory} left` : ''}</span>
                       <select
                         className="picker-weight"
                         aria-label={`Choose weight for ${item.name}`}
@@ -1610,17 +1556,6 @@ function App() {
                     </div>
                   </div>
 
-                  {checkoutForm.paymentMethod === 'upi' && upiPaymentUri && (
-                    <div className="upi-payment-box">
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiPaymentUri)}`}
-                        alt={`UPI payment QR for ${formatPrice(invoiceTotal)}`}
-                      />
-                      <p>Scan to pay {formatPrice(invoiceTotal)} to {deliveryConfig.upiId}</p>
-                      <small>Order remains pending until payment is confirmed.</small>
-                    </div>
-                  )}
-
                   <div className="security-badge">All your information is secure and encrypted</div>
 
                   <button type="submit" className="btn-pay">
@@ -1639,6 +1574,16 @@ function App() {
               <br />{orderSuccess.lineItems.length} product{orderSuccess.lineItems.length !== 1 ? 's' : ''} · <strong>{formatPrice(orderSuccess.totalAmount)}</strong>
               <br />A confirmation email has been sent to <strong>{orderSuccess.customerEmail}</strong>
             </p>
+            {orderSuccess.paymentMethod === 'UPI QR' && getUpiPaymentUri(orderSuccess.totalAmount) && (
+              <div className="upi-payment-box">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(getUpiPaymentUri(orderSuccess.totalAmount))}`}
+                  alt={`UPI payment QR for ${formatPrice(orderSuccess.totalAmount)}`}
+                />
+                <p>Scan to pay {formatPrice(orderSuccess.totalAmount)} to {deliveryConfig.upiId}</p>
+                <small>Order remains pending until payment is confirmed.</small>
+              </div>
+            )}
             <button
               type="button"
               className="btn-another"
@@ -1657,7 +1602,16 @@ function App() {
 
   if (page === 'feedback') return renderFeedback()
   if (page === 'order') return renderOrder()
-  return renderHome()
+  if (page === 'owner') return <OwnerPage apiUrl={ORDER_SHEETS_URL || REVIEW_SHEETS_URL} onBack={() => setPage('home')} />
+  return (
+    <HomePage
+      products={products}
+      reviews={reviews}
+      apiStatus={apiStatus}
+      accountPanel={renderAccountPanel()}
+      onNavigate={goToPage}
+    />
+  )
 }
 
 export default App

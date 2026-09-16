@@ -66,6 +66,18 @@ function doPost(e) {
       return verifyOtp(data.email, data.otp);
     }
 
+    if (data.action === 'adminLogin') {
+      return adminLogin(data.username, data.password);
+    }
+
+    if (data.action === 'adminUpdateOrder') {
+      return adminUpdateOrder(data);
+    }
+
+    if (data.action === 'adminUpdateInventory') {
+      return adminUpdateInventory(data);
+    }
+
     if (data.type === 'order') {
       return saveOrder(data);
     }
@@ -149,6 +161,85 @@ function verifyOtp(email, otp) {
   return jsonResponse({ status: 'success', email: email, token: token });
 }
 
+function adminLogin(username, password) {
+  var settings = getOrderSettings();
+  if (!settings.adminUsername || !settings.adminPassword ||
+      String(username || '').trim() !== settings.adminUsername ||
+      String(password || '') !== settings.adminPassword) {
+    return jsonResponse({ status: 'error', message: 'Invalid owner credentials' });
+  }
+
+  var token = Utilities.getUuid();
+  CacheService.getScriptCache().put('admin-session:' + token, settings.adminUsername, SESSION_TTL_SECONDS);
+  return jsonResponse({ status: 'success', token: token, expiresAt: Date.now() + SESSION_TTL_SECONDS * 1000 });
+}
+
+function isAdminSessionValid(token) {
+  return Boolean(CacheService.getScriptCache().get('admin-session:' + String(token || '')));
+}
+
+function adminUpdateOrder(data) {
+  if (!isAdminSessionValid(data.token)) {
+    return jsonResponse({ status: 'error', message: 'Unauthorized' });
+  }
+
+  var orderId = String(data.orderId || '').trim();
+  if (!orderId) return jsonResponse({ status: 'error', message: 'Order ID is required' });
+
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(ORDERS_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() < 2) return jsonResponse({ status: 'error', message: 'Order not found' });
+
+  var rows = sheet.getDataRange().getValues();
+  var updated = 0;
+  rows.slice(1).forEach(function(row, index) {
+    if (String(row[0] || '').trim() !== orderId) return;
+    sheet.getRange(index + 2, 3).setValue(String(data.status || row[2] || 'Pending'));
+    sheet.getRange(index + 2, 20).setValue(String(data.deliveryDate || ''));
+    sheet.getRange(index + 2, 21).setValue(String(data.adminComment || ''));
+    updated += 1;
+  });
+
+  return updated
+    ? jsonResponse({ status: 'success', message: 'Order updated', rows: updated })
+    : jsonResponse({ status: 'error', message: 'Order not found' });
+}
+
+function adminUpdateInventory(data) {
+  if (!isAdminSessionValid(data.token)) {
+    return jsonResponse({ status: 'error', message: 'Unauthorized' });
+  }
+
+  var productId = String(data.productId || '').trim();
+  var weight = String(data.weight || '').trim();
+  var inventory = Number(data.inventory);
+  if (!productId || !weight || !Number.isInteger(inventory) || inventory < 0) {
+    return jsonResponse({ status: 'error', message: 'A valid product and non-negative inventory are required' });
+  }
+
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(PRODUCTS_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() < 2) return jsonResponse({ status: 'error', message: 'Products sheet not found' });
+
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0].map(function(header) { return String(header).trim().toLowerCase(); });
+  var itemIdIndex = headers.indexOf('item id');
+  var inventoryIndex = headers.indexOf('inventory');
+  var weightIndex = headers.indexOf('item weight');
+  if (itemIdIndex === -1 || weightIndex === -1 || inventoryIndex === -1) {
+    return jsonResponse({ status: 'error', message: 'Products sheet needs Item ID and Inventory columns' });
+  }
+
+  var updated = 0;
+  rows.slice(1).forEach(function(row, index) {
+    if (String(row[itemIdIndex] || '').trim() !== productId || String(row[weightIndex] || '').trim() !== weight) return;
+    sheet.getRange(index + 2, inventoryIndex + 1).setValue(inventory);
+    updated += 1;
+  });
+
+  return updated
+    ? jsonResponse({ status: 'success', message: 'Inventory updated', rows: updated, inventory: inventory })
+    : jsonResponse({ status: 'error', message: 'Product not found' });
+}
+
 
 /**
  * Saves one invoice to the Orders sheet, with one row per line item.
@@ -162,7 +253,7 @@ function saveOrder(order) {
   }
 
   if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, 19).setValues([[
+    sheet.getRange(1, 1, 1, 21).setValues([[
       'Order ID',
       'Order Date',
       'Status',
@@ -181,7 +272,9 @@ function saveOrder(order) {
       'Quantity',
       'Line Total',
       'Delivery Charge',
-      'Invoice Total'
+      'Invoice Total',
+      'Delivery Date',
+      'Admin Comment'
     ]]);
     sheet.getRange(1, 1, 1, 19).setFontWeight('bold');
     sheet.setFrozenRows(1);
@@ -191,6 +284,8 @@ function saveOrder(order) {
   if (!lineItems.length) {
     throw new Error('Order must contain at least one line item');
   }
+
+  decrementInventory(ss, lineItems);
 
   var rows = lineItems.map(function(item) {
     return [
@@ -212,7 +307,9 @@ function saveOrder(order) {
       item.quantity || 0,
       item.total || 0,
       order.deliveryCharge || 0,
-      order.totalAmount || 0
+      order.totalAmount || 0,
+      order.deliveryDate || '',
+      order.adminComment || ''
     ];
   });
 
@@ -249,16 +346,58 @@ function saveOrder(order) {
 }
 
 function getOrderSettings() {
-  var settings = { orderNotificationEmail: '', upiId: '' };
+  var settings = { orderNotificationEmail: '', upiId: '', adminUsername: '', adminPassword: '' };
   var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('Settings');
   if (!sheet || sheet.getLastRow() < 2) return settings;
   sheet.getDataRange().getValues().slice(1).forEach(function(row) {
     var key = String(row[0] || '').trim();
     var value = String(row[1] || '').trim();
     if (key === 'orderNotificationEmail') settings.orderNotificationEmail = value;
+    if (key === 'adminUsername') settings.adminUsername = value;
+    if (key === 'adminPassword') settings.adminPassword = value;
     if (key === 'upiId') settings.upiId = value;
   });
   return settings;
+}
+
+function decrementInventory(ss, lineItems) {
+  var sheet = ss.getSheetByName(PRODUCTS_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() < 2) return;
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var rows = sheet.getDataRange().getValues();
+    var headers = rows[0].map(function(header) { return String(header).trim().toLowerCase(); });
+    var itemIdIndex = headers.indexOf('item id');
+    var weightIndex = headers.indexOf('item weight');
+    var inventoryIndex = headers.indexOf('inventory');
+    if (itemIdIndex === -1 || weightIndex === -1 || inventoryIndex === -1) return;
+
+    var requested = {};
+    lineItems.forEach(function(item) {
+      var key = String(item.productId || '').trim() + '|' + String(item.weight || '').trim();
+      requested[key] = (requested[key] || 0) + Number(item.quantity || 0);
+    });
+
+    var rowIndexes = {};
+    rows.slice(1).forEach(function(row, index) {
+      var id = String(row[itemIdIndex] || '').trim();
+      var weight = String(row[weightIndex] || '').trim();
+      if (id && weight && rowIndexes[id + '|' + weight] === undefined) rowIndexes[id + '|' + weight] = index + 1;
+    });
+
+    Object.keys(requested).forEach(function(key) {
+      var rowIndex = rowIndexes[key];
+      if (rowIndex === undefined) throw new Error('Product variant ' + key + ' was not found');
+      var current = Number(rows[rowIndex][inventoryIndex]);
+      if (!Number.isFinite(current)) return;
+      if (current < requested[key]) throw new Error('Insufficient inventory for product variant ' + key);
+      sheet.getRange(rowIndex + 1, inventoryIndex + 1).setValue(current - requested[key]);
+    });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 
@@ -278,6 +417,14 @@ function doGet(e) {
 
   if (e && e.parameter && e.parameter.action === 'orders') {
     return getOrderHistory(e.parameter.email, e.parameter.token);
+  }
+
+  if (e && e.parameter && e.parameter.action === 'adminOrders') {
+    return getAdminOrders(e.parameter.token);
+  }
+
+  if (e && e.parameter && e.parameter.action === 'adminProducts') {
+    return getAdminProducts(e.parameter.token);
   }
 
   try {
@@ -364,6 +511,8 @@ function getOrderHistory(email, token) {
         state: row[10],
         deliveryCharge: Number(row[17]) || 0,
         totalAmount: Number(row[18]) || 0,
+        deliveryDate: row[19] || '',
+        adminComment: row[20] || '',
         lineItems: []
       };
     }
@@ -378,6 +527,59 @@ function getOrderHistory(email, token) {
   });
 
   return jsonResponse({ status: 'success', orders: Object.keys(orders).map(function(id) { return orders[id]; }) });
+}
+
+function getAdminOrders(token) {
+  if (!isAdminSessionValid(token)) {
+    return jsonResponse({ status: 'error', message: 'Unauthorized', orders: [] });
+  }
+
+  var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(ORDERS_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() < 2) return jsonResponse({ status: 'success', orders: [] });
+
+  var rows = sheet.getDataRange().getValues();
+  var orders = {};
+  rows.slice(1).forEach(function(row) {
+    var orderId = String(row[0] || '');
+    if (!orderId) return;
+    if (!orders[orderId]) {
+      orders[orderId] = {
+        id: orderId,
+        orderDate: row[1],
+        status: row[2],
+        paymentMethod: row[3],
+        paymentId: row[4],
+        customerName: row[5],
+        customerMobile: row[6],
+        customerEmail: row[7],
+        deliveryAddress: row[8],
+        city: row[9],
+        state: row[10],
+        deliveryCharge: Number(row[17]) || 0,
+        totalAmount: Number(row[18]) || 0,
+        deliveryDate: row[19] || '',
+        adminComment: row[20] || '',
+        lineItems: []
+      };
+    }
+    orders[orderId].lineItems.push({
+      productId: row[11],
+      productName: row[12],
+      weight: row[13],
+      price: Number(row[14]) || 0,
+      quantity: Number(row[15]) || 0,
+      total: Number(row[16]) || 0
+    });
+  });
+
+  return jsonResponse({ status: 'success', orders: Object.keys(orders).map(function(id) { return orders[id]; }) });
+}
+
+function getAdminProducts(token) {
+  if (!isAdminSessionValid(token)) {
+    return jsonResponse({ status: 'error', message: 'Unauthorized', products: [] });
+  }
+  return jsonResponse({ status: 'success', products: getProducts() });
 }
 
 
@@ -402,6 +604,7 @@ function getProducts() {
   var itemIndex = headers.indexOf('item');
   var weightIndex = headers.indexOf('item weight');
   var priceIndex = headers.indexOf('price');
+  var inventoryIndex = headers.indexOf('inventory');
 
   if ([itemIdIndex, itemIndex, weightIndex, priceIndex].indexOf(-1) !== -1) {
     throw new Error('Products sheet must contain: Item ID, Item, Item Weight, Price');
@@ -412,7 +615,10 @@ function getProducts() {
       itemId: row[itemIdIndex],
       item: row[itemIndex],
       weight: row[weightIndex],
-      price: row[priceIndex]
+      price: row[priceIndex],
+      inventory: inventoryIndex === -1 || row[inventoryIndex] === '' || row[inventoryIndex] === null
+        ? undefined
+        : Math.max(0, Number(row[inventoryIndex]) || 0)
     };
   }).filter(function(product) {
     return product.itemId !== '' && product.item && product.weight !== '' && product.price !== '';
@@ -424,6 +630,7 @@ function getDefaultDeliveryConfig() {
   var settings = getOrderSettings();
   return {
     shopCity: 'Bangalore',
+    shopCityAliases: ['Bengaluru'],
     shopState: 'Karnataka',
     buffer: 15,
     zoneCities: [],
@@ -456,6 +663,7 @@ function getDeliveryConfig() {
       var key = String(row[0] || '').trim();
       var value = String(row[1] || '').trim();
       if (key === 'shopCity' && value) config.shopCity = value;
+      if (key === 'shopCityAliases') config.shopCityAliases = value.split(',').map(function(city) { return city.trim(); }).filter(Boolean);
       if (key === 'shopState' && value) config.shopState = value;
       if (key === 'buffer' && value !== '') config.buffer = Number(value) || 0;
       if (key === 'zoneCities') config.zoneCities = value.split(',').map(function(city) { return city.trim(); }).filter(Boolean);
