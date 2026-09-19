@@ -75,7 +75,7 @@ type CheckoutFormState = {
   deliveryAddress: string
   city: string
   state: string
-  paymentMethod: 'razorpay' | 'upi' | 'cod'
+  paymentMethod:  'upi' | 'cod'
 }
 
 type DeliverySlab = {
@@ -107,7 +107,7 @@ type AuthSession = {
 
 declare global {
   interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => { open: () => void }
+     
     google?: {
       accounts?: {
         id?: {
@@ -486,7 +486,7 @@ function App() {
     deliveryAddress: '',
     city: '',
     state: '',
-    paymentMethod: 'razorpay',
+    paymentMethod: 'upi',
   })
 
   const selectedItem = useMemo(
@@ -896,7 +896,7 @@ function App() {
       paymentMethod,
       paymentId,
       lineItems,
-      status: paymentMethod === 'Razorpay' ? 'Paid' : 'Pending',
+      status: paymentMethod === 'Upi' ? 'Paid' : 'Pending',
       orderDate: new Date().toISOString(),
       timestamp: Date.now(),
     }
@@ -988,45 +988,9 @@ function App() {
       return
     }
 
-    if (!window.Razorpay) {
-      alert(
-        'Payment gateway not configured. Please contact the administrator.\n\nYou can use "Cash on Delivery"/UPI option.',
-      )
-      return
-    }
+     
 
-    const total = cartSubtotal + deliveryCharge
-    const razorpayOptions = {
-      key: 'rzp_live_xxxxx',
-      amount: total * 100,
-      currency: 'INR',
-      name: 'Maharashtrian Masalas',
-      description: `Order for ${cartProducts.length} product${cartProducts.length !== 1 ? 's' : ''}`,
-      image: cartProducts[0]!.product.image,
-      prefill: {
-        name,
-        email,
-        contact: `+91${mobile}`,
-      },
-      notes: {
-        product_id: selectedItem.id,
-        delivery_address: address,
-      },
-      handler: async (response: { razorpay_payment_id: string }) => {
-        await saveOrder('Razorpay', response.razorpay_payment_id)
-      },
-      modal: {
-        ondismiss: () => {
-          // Payment dismissed by user; no action needed here.
-        },
-      },
-      theme: {
-        color: '#c4622d',
-      },
-    }
-
-    const razorpay = new window.Razorpay(razorpayOptions)
-    razorpay.open()
+     
   }
 
   const filteredReviews = useMemo(() => {
