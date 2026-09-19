@@ -144,6 +144,8 @@ const REVIEW_SHEETS_URL = import.meta.env.VITE_REVIEW_SHEETS_URL as string | und
 const ACCOUNT_API_URL = ORDER_SHEETS_URL || REVIEW_SHEETS_URL
 const AUTH_COOKIE_KEY = 'vyanjanaAuthSession'
 const AUTH_SESSION_TTL = 30 * 60 * 1000
+const OTP_RESEND_COOLDOWN_MS = 30 * 1000
+const MAX_OTP_VERIFY_ATTEMPTS = 5
 const CAPTIONS = ['', 'Terrible 😞', 'Poor 😕', 'Average 😐', 'Good 😊', 'Excellent 🤩']
 const ITEMS: Product[] = [
   {
@@ -468,6 +470,9 @@ function App() {
   const [accountOtp, setAccountOtp] = useState('')
   const [accountStep, setAccountStep] = useState<'email' | 'otp'>('email')
   const [accountBusy, setAccountBusy] = useState(false)
+  const [otpCooldownUntil, setOtpCooldownUntil] = useState(0)
+  const [otpAttemptsLeft, setOtpAttemptsLeft] = useState(MAX_OTP_VERIFY_ATTEMPTS)
+  const [nowTick, setNowTick] = useState(() => Date.now())
   const [orderHistory, setOrderHistory] = useState<Order[]>([])
   const [orderHistoryLoading, setOrderHistoryLoading] = useState(false)
   const [apiStatus, setApiStatus] = useState('✓ Ready')
@@ -545,11 +550,24 @@ function App() {
 
   const requestLoginOtp = async (event: FormEvent) => {
     event.preventDefault()
+
+    // Client-side throttle: blocks rapid re-clicks / resend spam before a
+    // request is even sent. This is a UX guard only — the Apps Script
+    // backend (requestOtp) must enforce its own server-side rate limit,
+    // since this check is trivially bypassed by calling the API directly.
+    const msRemaining = otpCooldownUntil - Date.now()
+    if (msRemaining > 0) {
+      alert(`Please wait ${Math.ceil(msRemaining / 1000)}s before requesting another OTP.`)
+      return
+    }
+
     setAccountBusy(true)
     try {
       const response = await accountPost({ action: 'requestOtp', email: accountEmail })
       if (response.status !== 'success') throw new Error(response.message || 'Could not send OTP')
       setAccountStep('otp')
+      setOtpAttemptsLeft(MAX_OTP_VERIFY_ATTEMPTS)
+      setOtpCooldownUntil(Date.now() + OTP_RESEND_COOLDOWN_MS)
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Could not send OTP')
     } finally {
@@ -559,11 +577,26 @@ function App() {
 
   const verifyLoginOtp = async (event: FormEvent) => {
     event.preventDefault()
+
+    if (otpAttemptsLeft <= 0) {
+      alert('Too many incorrect attempts. Please request a new OTP.')
+      setAccountStep('email')
+      setAccountOtp('')
+      return
+    }
+
     setAccountBusy(true)
     try {
       const response = await accountPost({ action: 'verifyOtp', email: accountEmail, otp: accountOtp })
       if (response.status !== 'success' || !response.email || !response.token) {
-        throw new Error(response.message || 'Invalid OTP')
+        const attemptsLeft = otpAttemptsLeft - 1
+        setOtpAttemptsLeft(attemptsLeft)
+        if (attemptsLeft <= 0) {
+          setAccountStep('email')
+          setAccountOtp('')
+          throw new Error('Too many incorrect attempts. Please request a new OTP.')
+        }
+        throw new Error(`${response.message || 'Invalid OTP'} (${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} left)`)
       }
       const session = {
         email: response.email,
@@ -574,6 +607,7 @@ function App() {
       setAuthSession(session)
       setCheckoutForm((current) => ({ ...current, deliveryEmail: response.email || current.deliveryEmail }))
       setAccountOtp('')
+      setOtpAttemptsLeft(MAX_OTP_VERIFY_ATTEMPTS)
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Could not verify OTP')
     } finally {
@@ -600,6 +634,14 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem('orders', JSON.stringify(orders))
   }, [orders])
+
+  // Ticks once a second while an OTP resend cooldown is active, so the
+  // "Resend in Ns" label counts down. Idle (no interval) once the cooldown clears.
+  useEffect(() => {
+    if (otpCooldownUntil <= Date.now()) return
+    const interval = window.setInterval(() => setNowTick(Date.now()), 1000)
+    return () => window.clearInterval(interval)
+  }, [otpCooldownUntil])
 
   useEffect(() => {
     let active = true
@@ -1106,13 +1148,24 @@ function App() {
           {accountStep === 'email' ? (
             <form className="account-form" onSubmit={requestLoginOtp}>
               <input type="email" placeholder="you@example.com" value={accountEmail} onChange={(event) => setAccountEmail(event.target.value)} required />
-              <button type="submit" className="account-action" disabled={accountBusy}>{accountBusy ? 'Sending…' : 'Send OTP'}</button>
+              {(() => {
+                const cooldownRemaining = Math.max(0, Math.ceil((otpCooldownUntil - nowTick) / 1000))
+                const onCooldown = cooldownRemaining > 0
+                return (
+                  <button type="submit" className="account-action" disabled={accountBusy || onCooldown}>
+                    {accountBusy ? 'Sending…' : onCooldown ? `Resend in ${cooldownRemaining}s` : 'Send OTP'}
+                  </button>
+                )
+              })()}
             </form>
           ) : (
             <form className="account-form" onSubmit={verifyLoginOtp}>
               <input type="text" inputMode="numeric" pattern="[0-9]{6}" placeholder="6-digit OTP" value={accountOtp} onChange={(event) => setAccountOtp(event.target.value)} required />
               <button type="submit" className="account-action" disabled={accountBusy}>{accountBusy ? 'Checking…' : 'Verify OTP'}</button>
               <button type="button" className="account-link" onClick={() => setAccountStep('email')}>Change email</button>
+              {otpAttemptsLeft < MAX_OTP_VERIFY_ATTEMPTS && (
+                <p className="owner-message error">{otpAttemptsLeft} attempt{otpAttemptsLeft === 1 ? '' : 's'} left</p>
+              )}
             </form>
           )}
         </>
