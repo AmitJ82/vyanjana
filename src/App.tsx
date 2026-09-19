@@ -1566,16 +1566,6 @@ function App() {
                         <input
                           type="radio"
                           name="paymentMethod"
-                          value="razorpay"
-                          checked={checkoutForm.paymentMethod === 'razorpay'}
-                          onChange={handleCheckoutChange}
-                        />
-                        <span>Razorpay (Card, UPI, Netbanking)</span>
-                      </label>
-                      <label>
-                        <input
-                          type="radio"
-                          name="paymentMethod"
                           value="upi"
                           checked={checkoutForm.paymentMethod === 'upi'}
                           onChange={handleCheckoutChange}
