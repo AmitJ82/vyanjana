@@ -69,7 +69,7 @@ export default function HomePage({ products, reviews, apiStatus, accountPanel, o
           <div className="home-hero-copy">
             <div className="home-eyebrow">Pure &amp; Natural · Traditional Recipes</div>
             <h2>Spices ground the way your grandmother made them</h2>
-            <p>No preservatives, no shortcuts — just stone-ground masalas made in small batches, straight from Maharashtra&apos;s kitchens to yours.</p>
+            <p>No preservatives, no shortcuts — just whole spices, freshly ground in small batches, straight from our kitchen to yours.</p>
             <div className="home-hero-actions">
               <a className="home-button home-button-primary" href="#products">See our spices</a>
               <a className="home-button home-button-outline" href="#contact">Get in touch</a>

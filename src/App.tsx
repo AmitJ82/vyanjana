@@ -7,7 +7,7 @@ import teaMasalaImage from './assets/vyanjana-images/tea-masala.jpeg'
 import turmericImage from './assets/vyanjana-images/turmeric.jpeg'
 import ambemohorImage from './assets/vyanjana-images/ambe-mohor-pithi.jpeg'
 import byadagiImage from './assets/vyanjana-images/byadagi-chilli.jpeg'
-import corianderPowderImage from './assets/vyanjana-images/Coriander-powder.jpeg'
+import corianderPowderImage from './assets/vyanjana-images/Dhania.jpeg'
 import kitchenKingMasalaImage from './assets/vyanjana-images/Kitchen-king.jpeg'
 import amlaImage from './assets/vyanjana-images/AmlaSlice.jpeg'
 
@@ -471,6 +471,8 @@ function App() {
   const [orderHistory, setOrderHistory] = useState<Order[]>([])
   const [orderHistoryLoading, setOrderHistoryLoading] = useState(false)
   const [apiStatus, setApiStatus] = useState('✓ Ready')
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+
   const [reviewForm, setReviewForm] = useState<ReviewFormState>({
     reviewerName: '',
     reviewerEmail: '',
@@ -988,7 +990,7 @@ function App() {
 
     if (!window.Razorpay) {
       alert(
-        'Payment gateway not configured. Please contact the administrator.\n\nFor testing, you can use "Cash on Delivery" option.',
+        'Payment gateway not configured. Please contact the administrator.\n\nYou can use "Cash on Delivery"/UPI option.',
       )
       return
     }
@@ -1073,24 +1075,61 @@ function App() {
               Loading order history…
             </div>
           ) : orderHistory.length ? (
-            <div className="history-list">
-              {[...orderHistory]
-                .sort((first, second) => (
-                  new Date(second.orderDate).getTime() - new Date(first.orderDate).getTime()
-                ))
-                .map((order) => (
-                <div key={order.id} className="history-item">
-                  <div>
-                    <strong>{order.id}</strong>
-                    <span>{order.lineItems.map((item) => `${item.productName} (${item.weight}) × ${item.quantity}`).join(', ')}</span>
-                  </div>
-                  <div className={`history-status ${order.status.toLowerCase()}`}>
-                    {order.status} · {formatPrice(order.totalAmount)}
-                  </div>
-                </div>
-              ))}
+  <div className="history-list">
+    {[...orderHistory]
+      .sort((first, second) => (
+        new Date(second.orderDate).getTime() - new Date(first.orderDate).getTime()
+      ))
+      .map((order) => {
+        const needsPayment =
+          (order.paymentMethod === 'UPI QR' || order.paymentMethod === 'Cash on Delivery') &&
+          order.status !== 'Paid';
+        const isShowingQr = payingOrderId === order.id;
+
+        return (
+          <div key={order.id} className="history-item">
+            <div>
+              <strong>{order.id}</strong>
+              <span>
+                {order.lineItems
+                  .map((item) => `${item.productName} (${item.weight}) × ${item.quantity}`)
+                  .join(', ')}
+              </span>
             </div>
-          ) : <p className="empty-history">No orders found for this email.</p>}
+            <div className={`history-status ${order.status.toLowerCase()}`}>
+              {order.status} · {formatPrice(order.totalAmount)}
+            </div>
+
+            {needsPayment && (
+              <button
+                type="button"
+                className="pay-now-button"
+                onClick={() => setPayingOrderId(isShowingQr ? null : order.id)}
+              >
+                {isShowingQr ? 'Hide QR' : 'Pay Now'}
+              </button>
+            )}
+
+            {needsPayment && isShowingQr && (
+              <div className="upi-payment-box">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                    getUpiPaymentUri(order.totalAmount)
+                  )}`}
+                  alt={`UPI payment QR for ${formatPrice(order.totalAmount)}`}
+                />
+                <p>
+                  Scan to pay {formatPrice(order.totalAmount)} to {deliveryConfig.upiId}
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+  </div>
+) : (
+  <p className="empty-history">No orders found for this email.</p>
+)}
         </>
       ) : (
         <>
@@ -1591,7 +1630,12 @@ function App() {
             >
               Write a Review (Optional)
             </button>
-            <button type="button" className="btn-another accent" onClick={() => goToPage('home')}>
+            <button type="button" className="btn-another accent" onClick={() => {
+                        setOrderSuccess(null)
+                        setCart([])
+                        setSelectedWeights({})
+                        goToPage('home')
+                      }}>
               Back to Products
             </button>
           </div>
